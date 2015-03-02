@@ -1,7 +1,17 @@
+2015-03-02  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	Add some experimental scripts
+
+	* experiments: Created.
+	* experiments/basiclog/basiclog.py: Created.
+	* experiments/jump/jump.py: Created.
+	* experiments/ramp/ramp.py: Created.
+	* experiments/test/test.py: Created.
+
 2015-03-01  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	Project created.
 
 	* ChangeLog: Created.
 	* README.md: Created with meaningful content.
-	
+
