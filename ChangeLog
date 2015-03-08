@@ -1,5 +1,12 @@
 2015-03-08  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	First attempt at a PID controller for hovering.
+
+	* experiments/pid_jump/dataview.ods: Created.
+	* experiments/pid_jump/pid_jump.py: Created.
+
+2015-03-08  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* experiments/jump/dataview.ods: Created.
 
 2015-03-08  Jeremy Bennett  <jeremy.bennett@embecosm.com>
