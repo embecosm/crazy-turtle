@@ -1,3 +1,14 @@
+2015-03-08  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* experiments/jump/jump.py: Better commenting.
+	(MotorJumpExample.__init__): Private instance variables for class
+	wide constants, timestamp, log variables and log variable
+	averages.
+	(MotorJumpExample._connected): Single log for all variables.
+	(MotorJumpExample._log_data): Keep all data in instance variables.
+	(MotorJumpExample._iir_filter): Created.
+	(MotorJumpExample._jump_motors): Simplified logic.
+
 2015-03-02  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	Add some experimental scripts
@@ -14,4 +25,3 @@
 
 	* ChangeLog: Created.
 	* README.md: Created with meaningful content.
-
