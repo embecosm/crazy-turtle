@@ -1,3 +1,13 @@
+2015-03-09  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* experiments/pid_jump/pid_jump.py
+	(MotorPidJumpExample._log_data): Don't invert yaw.
+	(MotorJumpExample._jump_motors): Set init values that seem to work
+	for roll, pitch and yaw.  Set Kp for roll, pitch and yaw by
+	experiment.  Rename thrust_ctrl to aslCtrl.  Wider thrust limits.
+	Output of control is change to roll, pitch and yaw, not absolute
+	value.
+
 2015-03-08  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* experiments/pid_jump/pid-data.ods: Created.

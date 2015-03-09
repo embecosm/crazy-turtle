@@ -276,7 +276,7 @@ class MotorPidJumpExample:
         self._asl       = data['baro.aslLong']
         self._roll      = data['stabilizer.roll']
         self._pitch     = - data['stabilizer.pitch']
-        self._yaw       = - data['stabilizer.yaw']
+        self._yaw       = data['stabilizer.yaw']
         self._thrust    = data['stabilizer.thrust']
 
         if self._debug > 0:
@@ -340,55 +340,58 @@ class MotorPidJumpExample:
         # Roll  - negative makes it go left
         # Pitch - positive makes it go forward
         # Yaw   - ? makes it go which way?
-        roll_init  = -3
-        pitch_init =  8
-        yaw_init   =  0
+        rollInit  = -1
+        pitchInit =  1
+        yawInit   =  0
 
         # PID controllers for attitude
-        roll_ctrl   = PidController (setpoint = roll_init,  kp = 0.5)
-        pitch_ctrl  = PidController (setpoint = pitch_init, kp = 0.5)
-        yaw_ctrl    = PidController (setpoint = yaw_init,   kp = 0.5)
+        rollCtrl   = PidController (setpoint = rollInit,  kp = 0.01)
+        pitchCtrl  = PidController (setpoint = pitchInit, kp = 0.025)
+        yawCtrl    = PidController (setpoint = yawInit,   kp = 0.05)
 
         # PID controller for thrust.  At this stage we don't know the desired
         # setpoint, but it will be a fraction of the take off ASL
-        thrust_ctrl = PidController (kp = 400.0)
+        aslCtrl = PidController (kp = 100.0)
         asl_frac = 0.995
 
         # Parameters to get off the ground.
         thrust_step  =   500
         thrust_start = 20000
-        thrust_stop  = 40000
+        thrust_stop  = 38000
 
         # Timing
         dt = 0.01
-        jumptime = 10
+        jumptime = 2
         jumpsteps = int(float(jumptime) / dt)
 
         # Limits for thrust to avoid extreme oscillation
-        thrust_min = 38000
-        thrust_max = 42000
+        thrust_min = 36000
+        thrust_max = 44000
 
         # Unlock startup thrust protection
         self._cf.commander.send_setpoint(0, 0, 0, 0)
 
         # Rapidly wind up
         for t in range(thrust_start, thrust_stop, thrust_step):
-            self._cf.commander.send_setpoint(roll_init, pitch_init, yaw_init, t)
+            self._cf.commander.send_setpoint(rollInit, pitchInit, yawInit, t)
             time.sleep(0.01)
 
         aslTarget = self._asl * asl_frac
-        thrust_ctrl.setpoint (aslTarget)
+        aslCtrl.setpoint (aslTarget)
         print "Target ASL %f" % (aslTarget)
 
+        roll   = rollInit
+        pitch  = pitchInit
+        yaw    = yawInit
         thrust = thrust_stop
 
         # Control loop
         for i in range (1, jumpsteps, 1):
-            roll   = roll_ctrl.control(self._roll, dt)
-            pitch  = pitch_ctrl.control(self._pitch, dt)
-            yaw    = yaw_ctrl.control(self._yaw, dt)
+            roll   += rollCtrl.control(self._roll, dt)
+            pitch  += pitchCtrl.control(self._pitch, dt)
+            yaw    += yawCtrl.control(self._yaw, dt)
 
-            thrust += int(thrust_ctrl.control(self._asl, dt))
+            thrust -= int(aslCtrl.control(self._asl, dt))
 
             if thrust > thrust_max:
                 thrust = thrust_max
@@ -404,7 +407,7 @@ class MotorPidJumpExample:
             print "%f,%f,%f,%f,%f,%f,%f,%f,%d" % (now, self._roll, roll,
                                                   self._pitch, pitch,
                                                   self._yaw, yaw,
-                                                  self._asl - aslTarget,
+                                                  aslTarget - self._asl,
                                                   thrust)
 
             if (cutoff_en and (abs(self._roll)  > cutoff or
