@@ -1,3 +1,13 @@
+2015-03-11  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* experiments/pid_jump/dataview.ods: Deleted.
+	* experiments/pid_jump/pid-data.ods: Updated with latest flight data.
+	* experiments/pid_jump/pid_jump.py
+	(MotorPidJumpExample._connected): Clarify meaning of ASL and
+	normalize, using raw values.
+	(MotorJumpExample._jump_motors): Use explicit initial value of
+	ASL, based on understanding of its meaning.
+
 2015-03-09  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* experiments/pid_jump/pid_jump.py

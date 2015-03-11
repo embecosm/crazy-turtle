@@ -209,11 +209,17 @@ class MotorPidJumpExample:
         This method is called from the Crazyflie API when a Crazyflie has been
         connected and the TOCs have been downloaded.
 
-        It sets up some logging for the barometer, then after a short pause
-        starts a separate thread to drive the motors.
+        It sets up some logging for the parameters which concern us, then
+        after a short pause starts a separate thread to drive the motors.
+
+        For height we use the raw ASL (height above sea level) value.  This
+        appears to be roughly in metres.  However it relies on a constant for
+        pressure at sea level, so weather conditions make a big difference.
+        We normalize the value.
 
         Keyword argument:
         link_uri -- the URI for the Crazyflie (no default)
+
         """
 
         # Start the logging.
@@ -222,11 +228,15 @@ class MotorPidJumpExample:
         # connecting, but we do it here, since the rest of the intialization
         # can't be done until we are connected.
         self._lg = LogConfig(name = "Log", period_in_ms = 10);
-        self._lg.add_variable("baro.aslLong", "float");
+        self._lg.add_variable("baro.aslRaw", "float");
         self._lg.add_variable("stabilizer.roll", "float")
         self._lg.add_variable("stabilizer.pitch", "float")
         self._lg.add_variable("stabilizer.yaw", "float")
         self._lg.add_variable("stabilizer.thrust", "uint16_t")
+
+        # We want to snag the ASL base as the average over the first 10 calls.
+        self._aslBaseCount = 10
+        self._aslBase = 0.0
 
         # Adding the configuration cannot be done until a Crazyflie is
         # connected, since we need to check that the variables we
@@ -271,12 +281,17 @@ class MotorPidJumpExample:
         logconf   -- configuration data for this log
         """
 
-        #  Log data. Remember pitch and yaw are negative!
+        #  Log data. Remember pitch and yaw are negative!  First time capture
+        #  the ASL starting value
+        if self._aslBaseCount > 0:
+            self._aslBase      += data['baro.aslRaw'] / 10
+            self._aslBaseCount -= 1
+
         self._timestamp = timestamp
-        self._asl       = data['baro.aslLong']
+        self._asl       = data['baro.aslRaw'] - self._aslBase
         self._roll      = data['stabilizer.roll']
         self._pitch     = - data['stabilizer.pitch']
-        self._yaw       = data['stabilizer.yaw']
+        self._yaw       = - data['stabilizer.yaw']
         self._thrust    = data['stabilizer.thrust']
 
         if self._debug > 0:
@@ -334,25 +349,25 @@ class MotorPidJumpExample:
         kill = False
         cutoff = 20.0
         cutoff_en = True
-        thrust_limit = 45000
+        thrust_limit = 50000
 
         # Initial values for attitude
         # Roll  - negative makes it go left
         # Pitch - positive makes it go forward
         # Yaw   - ? makes it go which way?
-        rollInit  = -1
-        pitchInit =  1
-        yawInit   =  0
+        # ASL   - height in metres above sea level
+        rollInit  =  -1.5
+        pitchInit =  8.0
+        yawInit   =  0.0
+        aslInit   =  1.5
 
         # PID controllers for attitude
-        rollCtrl   = PidController (setpoint = rollInit,  kp = 0.01)
-        pitchCtrl  = PidController (setpoint = pitchInit, kp = 0.025)
-        yawCtrl    = PidController (setpoint = yawInit,   kp = 0.05)
+        rollCtrl   = PidController(setpoint = rollInit,  kp = 0)
+        pitchCtrl  = PidController(setpoint = pitchInit, kp = 0)
+        yawCtrl    = PidController(setpoint = yawInit,   kp = 0)
 
-        # PID controller for thrust.  At this stage we don't know the desired
-        # setpoint, but it will be a fraction of the take off ASL
-        aslCtrl = PidController (kp = 100.0)
-        asl_frac = 0.995
+        # PID controller for altitude.
+        aslCtrl = PidController(setpoint = aslInit, kp = 0)
 
         # Parameters to get off the ground.
         thrust_step  =   500
@@ -361,24 +376,20 @@ class MotorPidJumpExample:
 
         # Timing
         dt = 0.01
-        jumptime = 2
+        jumptime = 5
         jumpsteps = int(float(jumptime) / dt)
 
         # Limits for thrust to avoid extreme oscillation
-        thrust_min = 36000
-        thrust_max = 44000
+        thrust_min = 34000
+        thrust_max = 48000
 
         # Unlock startup thrust protection
         self._cf.commander.send_setpoint(0, 0, 0, 0)
 
         # Rapidly wind up
         for t in range(thrust_start, thrust_stop, thrust_step):
-            self._cf.commander.send_setpoint(rollInit, pitchInit, yawInit, t)
+            self._cf.commander.send_setpoint(rollInit, pitchInit, yawInit, t*0.0)
             time.sleep(0.01)
-
-        aslTarget = self._asl * asl_frac
-        aslCtrl.setpoint (aslTarget)
-        print "Target ASL %f" % (aslTarget)
 
         roll   = rollInit
         pitch  = pitchInit
@@ -387,11 +398,11 @@ class MotorPidJumpExample:
 
         # Control loop
         for i in range (1, jumpsteps, 1):
-            roll   += rollCtrl.control(self._roll, dt)
-            pitch  += pitchCtrl.control(self._pitch, dt)
-            yaw    += yawCtrl.control(self._yaw, dt)
+            roll   = rollInit  - rollCtrl.control(self._roll, dt)
+            pitch  = pitchInit - pitchCtrl.control(self._pitch, dt)
+            yaw    = yawInit   - yawCtrl.control(self._yaw, dt)
 
-            thrust -= int(aslCtrl.control(self._asl, dt))
+            thrust = thrust_stop - int(aslCtrl.control(self._asl, dt))
 
             if thrust > thrust_max:
                 thrust = thrust_max
@@ -407,7 +418,7 @@ class MotorPidJumpExample:
             print "%f,%f,%f,%f,%f,%f,%f,%f,%d" % (now, self._roll, roll,
                                                   self._pitch, pitch,
                                                   self._yaw, yaw,
-                                                  aslTarget - self._asl,
+                                                  self._asl,
                                                   thrust)
 
             if (cutoff_en and (abs(self._roll)  > cutoff or
@@ -430,7 +441,7 @@ class MotorPidJumpExample:
                 self._cf.commander.send_setpoint(roll,
                                                  pitch,
                                                  yaw,
-                                                 thrust)
+                                                 thrust * 0.0)
 
             # Wait a little bit
             time.sleep(dt)
